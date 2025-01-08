@@ -10,57 +10,117 @@ import snowyIcon from "./assets/neige.webp";
 
 function App() {
   const [city, setCity] = useState("");
+  const [searchCity, setSearchCity] = useState("");
   const [country, setCountry] = useState("");
-  const [day, setDay] = useState("");
   const [temperature, setTemperature] = useState("");
   const [weatherCondition, setWeatherCondition] = useState("");
   const [loading, setLoading] = useState(true);
+  const [forecast, setForecast] = useState([]);
+  const [error, setError] = useState("");
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [favorites, setFavorites] = useState(() => {
+    const saved = localStorage.getItem("weatherFavorites");
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
-    const fetchWeatherData = async (latitude, longitude) => {
-      try {
-        const apiKey = process.env.REACT_APP_API_KEY;
-        const apiURL = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
-        const response = await fetch(apiURL);
-        const data = await response.json();
-        setCity(data.name);
-        setCountry(data.sys.country);
-        setDay(new Date().toLocaleDateString("fr-FR", { weekday: "long" }));
-        setTemperature(data.main.temp);
-        setWeatherCondition(data.weather[0].main);
-        setLoading(false);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la récupération des données météorologiques:",
-          error
-        );
-      }
-    };
+    localStorage.setItem("weatherFavorites", JSON.stringify(favorites));
+  }, [favorites]);
 
-    const getLocation = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            fetchWeatherData(latitude, longitude);
-          },
-          (error) => {
-            console.error("Erreur de géolocalisation:", error);
+  const fetchWeatherByCity = async (cityName) => {
+    try {
+      setLoading(true);
+      const apiKey = process.env.REACT_APP_API_KEY;
+      const weatherURL = `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${apiKey}&units=metric`;
+      const forecastURL = `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${apiKey}&units=metric`;
+
+      const [weatherResponse, forecastResponse] = await Promise.all([
+        fetch(weatherURL),
+        fetch(forecastURL),
+      ]);
+
+      if (!weatherResponse.ok || !forecastResponse.ok) {
+        throw new Error("Ville non trouvée");
+      }
+
+      const weatherData = await weatherResponse.json();
+      const forecastData = await forecastResponse.json();
+
+      setCity(weatherData.name);
+      setCountry(weatherData.sys.country);
+      setTemperature(weatherData.main.temp);
+      setWeatherCondition(weatherData.weather[0].main);
+      setShowFavorites(false);
+
+      const dailyForecasts = forecastData.list
+        .filter((item, index) => index % 8 === 0)
+        .slice(0, 5)
+        .map((item) => ({
+          date: new Date(item.dt * 1000).toLocaleDateString("fr-FR", {
+            weekday: "long",
+          }),
+          temp: Math.round(item.main.temp),
+          condition: item.weather[0].main,
+        }));
+
+      setForecast(dailyForecasts);
+      setError("");
+    } catch (error) {
+      setError("Ville non trouvée. Veuillez réessayer.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFavorite = () => {
+    const cityInfo = { name: city, country };
+
+    if (favorites.some((f) => f.name === city && f.country === country)) {
+      setFavorites(
+        favorites.filter((f) => !(f.name === city && f.country === country))
+      );
+    } else {
+      setFavorites([...favorites, cityInfo]);
+    }
+  };
+
+  const isFavorite = () => {
+    return favorites.some((f) => f.name === city && f.country === country);
+  };
+
+  const getLocation = () => {
+    if (navigator.geolocation) {
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          const apiKey = process.env.REACT_APP_API_KEY;
+          const reverseGeoURL = `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${apiKey}`;
+
+          const response = await fetch(reverseGeoURL);
+          const data = await response.json();
+          if (data.length > 0) {
+            fetchWeatherByCity(data[0].name);
           }
-        );
-      } else {
-        console.error(
-          "La géolocalisation n'est pas prise en charge par ce navigateur."
-        );
-      }
-    };
+        },
+        (error) => {
+          console.error("Erreur de géolocalisation:", error);
+          setLoading(false);
+          setError("Erreur de géolocalisation. Veuillez réessayer.");
+        }
+      );
+    } else {
+      setError("La géolocalisation n'est pas supportée par votre navigateur.");
+      setLoading(false);
+    }
+  };
 
-    getLocation();
+  useEffect(() => {
+    fetchWeatherByCity("Paris");
   }, []);
 
-  // Fonction pour choisir l'icône en fonction de la condition météorologique
-  const getWeatherIcon = () => {
-    switch (weatherCondition.toLowerCase()) {
+  const getWeatherIcon = (condition) => {
+    switch (condition.toLowerCase()) {
       case "clear":
         return clearDayIcon;
       case "clouds":
@@ -70,35 +130,138 @@ function App() {
       case "snow":
         return snowyIcon;
       default:
-        return null;
+        return clearDayIcon;
     }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchCity.trim()) {
+      fetchWeatherByCity(searchCity);
+    }
+  };
+
+  const removeFavorite = (cityToRemove, countryToRemove) => {
+    setFavorites(
+      favorites.filter(
+        (f) => !(f.name === cityToRemove && f.country === countryToRemove)
+      )
+    );
   };
 
   return (
     <div className="App">
-      {loading ? (
+      <div className="nav-container">
+        <div className="search-container">
+          <form onSubmit={handleSearch}>
+            <input
+              type="text"
+              value={searchCity}
+              onChange={(e) => setSearchCity(e.target.value)}
+              placeholder="Rechercher une ville..."
+              className="search-input"
+            />
+            <button type="submit" className="search-button">
+              Rechercher
+            </button>
+          </form>
+        </div>
+        <div className="nav-buttons">
+          <button
+            className={`nav-button ${!showFavorites ? "active" : ""}`}
+            onClick={() => setShowFavorites(false)}
+          >
+            Météo
+          </button>
+          <button
+            className={`nav-button ${showFavorites ? "active" : ""}`}
+            onClick={() => setShowFavorites(true)}
+          >
+            Favoris
+          </button>
+          <button
+            className="nav-button"
+            onClick={getLocation}
+            title="Utiliser ma position"
+          >
+            📍 Ma position
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      {showFavorites ? (
+        <div className="favorites-container">
+          <h2>Mes Villes Favorites</h2>
+          {favorites.length === 0 ? (
+            <p className="no-favorites">Aucune ville en favori</p>
+          ) : (
+            <div className="favorites-grid">
+              {favorites.map((fav, index) => (
+                <div key={index} className="favorite-item-container">
+                  <button
+                    className="favorite-item"
+                    onClick={() => fetchWeatherByCity(fav.name)}
+                  >
+                    {fav.name}, {fav.country}
+                  </button>
+                  <button
+                    className="remove-favorite"
+                    onClick={() => removeFavorite(fav.name, fav.country)}
+                    title="Supprimer des favoris"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : loading ? (
         <div className="loader">
-          <img
-            src={loader}
-            alt="loader"
-            style={{ width: "100px", height: "100px" }}
-          />
+          <img src={loader} alt="loader" />
         </div>
       ) : (
-        <div>
-          <h1>Météo</h1>
-          <div className="infos">
-            <p>{city}</p>
-            <p>{country}</p>
-            <p>{day}</p>
-            <p>{temperature} °C</p>
-            {weatherCondition && (
+        <div className="weather-container">
+          <div className="current-weather">
+            <div className="city-header">
+              <h1>
+                {city}, {country}
+              </h1>
+              <button
+                className={`favorite-button ${isFavorite() ? "active" : ""}`}
+                onClick={toggleFavorite}
+              >
+                {isFavorite() ? "★" : "☆"}
+              </button>
+            </div>
+            <div className="weather-info">
               <img
-                src={getWeatherIcon()}
+                src={getWeatherIcon(weatherCondition)}
                 alt="Weather Icon"
-                style={{ width: "100px", height: "100px" }}
+                className="weather-icon"
               />
-            )}
+              <div className="temperature">{Math.round(temperature)}°C</div>
+              <div className="condition">{weatherCondition}</div>
+            </div>
+          </div>
+
+          <div className="forecast">
+            <h2>Prévisions sur 5 jours</h2>
+            <div className="forecast-container">
+              {forecast.map((day, index) => (
+                <div key={index} className="forecast-day">
+                  <div className="day-name">{day.date}</div>
+                  <img
+                    src={getWeatherIcon(day.condition)}
+                    alt="Weather Icon"
+                    className="forecast-icon"
+                  />
+                  <div className="forecast-temp">{day.temp}°C</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
