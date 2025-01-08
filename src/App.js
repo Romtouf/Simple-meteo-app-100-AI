@@ -151,6 +151,7 @@ function App() {
 
   return (
     <div className="App">
+      <h1 className="app-title">Météo app</h1>
       <div className="nav-container">
         <div className="search-container">
           <form onSubmit={handleSearch}>
