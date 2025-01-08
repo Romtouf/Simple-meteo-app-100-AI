@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.css": "/Simple-meteo-app-100-AI/static/css/main.3db79394.css",
+    "main.css": "/Simple-meteo-app-100-AI/static/css/main.e8d98c02.css",
     "main.js": "/Simple-meteo-app-100-AI/static/js/main.7057663c.js",
     "static/js/453.abdd7ff4.chunk.js": "/Simple-meteo-app-100-AI/static/js/453.abdd7ff4.chunk.js",
     "static/media/neige.webp": "/Simple-meteo-app-100-AI/static/media/neige.74ce4cfea5f6388492cc.webp",
@@ -9,12 +9,12 @@
     "static/media/nuages.webp": "/Simple-meteo-app-100-AI/static/media/nuages.8af57365027bd846c672.webp",
     "index.html": "/Simple-meteo-app-100-AI/index.html",
     "static/media/loader.svg": "/Simple-meteo-app-100-AI/static/media/loader.b15749cb570b73326d87771f993cb6ba.svg",
-    "main.3db79394.css.map": "/Simple-meteo-app-100-AI/static/css/main.3db79394.css.map",
+    "main.e8d98c02.css.map": "/Simple-meteo-app-100-AI/static/css/main.e8d98c02.css.map",
     "main.7057663c.js.map": "/Simple-meteo-app-100-AI/static/js/main.7057663c.js.map",
     "453.abdd7ff4.chunk.js.map": "/Simple-meteo-app-100-AI/static/js/453.abdd7ff4.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.3db79394.css",
+    "static/css/main.e8d98c02.css",
     "static/js/main.7057663c.js"
   ]
 }
